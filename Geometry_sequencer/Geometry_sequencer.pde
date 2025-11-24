@@ -259,11 +259,21 @@ void setup() {
   sequencers[1] = new Sequencer(width/2, height*0.45);
   sequencers[2] = new Sequencer(width-marginX, height*0.45);
 
-  // Clock speed knob between sequencer 2 & 3, top of polygon
-  // Move Clock speed knob to top right with margin
-  float knobMargin = 20;
+  // --- Initialize sequencers to 16 steps ---
+  for(Sequencer seq : sequencers){
+    seq.sidesKnob.value = map(16, 3, MAX_SIDES, 0, 1); // maps 16 steps to knob 0-1
+  }
+
+  // Move Clock speed knob to top right with margin and init to 100ms
+  float knobMargin = 30;
   float knobRadius = 20;
-  clockKnob = new Knob(width - knobMargin - knobRadius, knobMargin + knobRadius, knobRadius, "Clock Speed", 0.2);
+  clockKnob = new Knob(width - knobMargin - knobRadius, knobMargin + knobRadius, knobRadius, "Clock Speed", 0.0);
+  
+  // Convert 100ms to knob value
+  float minInterval = 0.025;
+  float maxInterval = 1.0;
+  float targetInterval = 0.1; // 100 ms
+  clockKnob.value = map(targetInterval, maxInterval, minInterval, 0, 1);
 }
 
 // ---------------- Draw ----------------
