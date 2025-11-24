@@ -1,5 +1,3 @@
-//test
-
 import oscP5.*;
 import netP5.*;
 
@@ -12,12 +10,13 @@ float[] CVin  = new float[8];
 float[] CVout = new float[8];
 
 // For CV trigger logic
-final float PULSE_DURATION = 0.01;       // 10 ms pulse
+final float PULSE_DURATION = 0.005;       // 5 ms pulse
 
 final int MAX_SIDES = 32;
 
 // --- main clock ---
 Knob clockKnob;
+Button resetAllButton;  // Reset all sequencers
 
 // --- Sequencer array ---
 Sequencer[] sequencers;
@@ -154,13 +153,13 @@ class Button {
 class Sequencer {
   float centerX, centerY;
   VertexDot[] dots;
-  boolean[] stepActive;     // logical step on/off for CVs
+  boolean[] stepActive;     
   int currentStep = -1;
   Knob sidesKnob, rotateKnob, clkDivideKnob;
-  float nextStepTime = 0;   // absolute time of next step
-  float pulseEndTime = 0;   // absolute time when CV pulse ends
+  float nextStepTime = 0;   
+  float pulseEndTime = 0;   
   Button resetButton;
-  int seqIndex; // 0,1,2 for CV mapping
+  int seqIndex; 
 
   Sequencer(float centerX, float centerY, int seqIndex){
     this.centerX = centerX;
@@ -182,23 +181,21 @@ class Sequencer {
 
     resetButton = new Button(centerX, centerY, 20, "Reset");
 
-    nextStepTime = millis()/1000.0; // start immediately
+    nextStepTime = millis()/1000.0; 
   }
 
   void update(float mainClockInterval){
-    float t = millis()/1000.0; // current time in seconds
+    float t = millis()/1000.0; 
     int sides = constrain(round(map(sidesKnob.value,0,1,3,MAX_SIDES)),3,MAX_SIDES);
     int rotIndex = floor(rotateKnob.value*(sides-1));
     int clkDivide = max(1, int(map(clkDivideKnob.value,0,1,1,16)));
 
     float interval = mainClockInterval * clkDivide;
 
-    // --- Step timing based on absolute clock ---
     if(t >= nextStepTime){
       currentStep = (currentStep + 1) % sides;
       nextStepTime += interval;
 
-      // Trigger CV pulse for this step if active
       int patternIndex = (currentStep - rotIndex + sides) % sides;
       if(stepActive[patternIndex]){
         assignCVOut(seqIndex, 5.0);
@@ -208,13 +205,11 @@ class Sequencer {
       if(currentStep != -1) dots[currentStep].resetColor();
     }
 
-    // --- End CV pulse if needed ---
     if(t >= pulseEndTime && pulseEndTime > 0){
       assignCVOut(seqIndex, 0.0);
       pulseEndTime = 0;
     }
 
-    // --- Layout dots ---
     float radius = min(width,height)*0.25;
     float angleStep = TWO_PI / sides;
     for(int i=0;i<sides;i++){
@@ -223,7 +218,6 @@ class Sequencer {
       dots[i].y = sin(angle)*radius;
     }
 
-    // --- Update dot colors for display ---
     for(int i=0;i<sides;i++){
       int patternIndex = (i-rotIndex+sides)%sides;
       color dotBase = stepActive[patternIndex] ? color(255,255,0) : color(255);
@@ -266,15 +260,15 @@ class Sequencer {
     for(int i=0;i<sides;i++){
       int patternIndex = (i-rotIndex+sides)%sides;
       if(dots[i].isHit(adjX,adjY,dotSize)){
-        stepActive[patternIndex] = !stepActive[patternIndex]; // toggle logical step
-        dots[patternIndex].toggleColor(); // visual only
+        stepActive[patternIndex] = !stepActive[patternIndex]; 
+        dots[patternIndex].toggleColor(); 
       }
     }
 
     if(resetButton.hit(mx,my) && !resetButton.wasPressed){
       resetButton.trigger();
       currentStep = -1;
-      nextStepTime = millis()/1000.0; // reset timing
+      nextStepTime = millis()/1000.0;
     }
     resetButton.wasPressed = resetButton.hit(mx,my);
   }
@@ -290,7 +284,6 @@ void setup() {
   OSC = new OscP5(this,7000);
   remote = new NetAddress(ip, 7001);
 
-  // Plug CV inputs
   for(int i=0;i<8;i++){
     OSC.plug(this,"CV"+(i+1)+"In","/ch/"+(i+1));
   }
@@ -306,6 +299,7 @@ void setup() {
   }
 
   clockKnob = new Knob(width-50,50,20,"Clock Speed", map(0.1,1.0,0.025,0,1));
+resetAllButton = new Button(clockKnob.x - 50, clockKnob.y, 20, "Reset All");
 }
 
 // ==================== Draw ====================
@@ -319,11 +313,22 @@ void draw() {
   }
 
   clockKnob.display();
+  resetAllButton.display();
 }
 
 // ==================== Mouse ====================
 void mousePressed(){
   if(clockKnob.hit(mouseX, mouseY)) clockKnob.active = true;
+
+  if(resetAllButton.hit(mouseX, mouseY) && !resetAllButton.wasPressed){
+    resetAllButton.trigger();
+    for(Sequencer seq : sequencers){
+      seq.currentStep = -1;
+      seq.nextStepTime = millis()/1000.0;
+    }
+  }
+  resetAllButton.wasPressed = resetAllButton.hit(mouseX, mouseY);
+
   for(Sequencer seq : sequencers){
     if(seq.sidesKnob.hit(mouseX, mouseY)) seq.sidesKnob.active = true;
     if(seq.rotateKnob.hit(mouseX, mouseY)) seq.rotateKnob.active = true;
@@ -344,6 +349,7 @@ void mouseDragged(){
 
 void mouseReleased(){
   clockKnob.active = false;
+  resetAllButton.wasPressed = false;
   for(Sequencer seq : sequencers){
     seq.sidesKnob.active = false;
     seq.rotateKnob.active = false;
@@ -362,15 +368,9 @@ void CV6In(float voltage){ assignCVIn(5,voltage); }
 void CV7In(float voltage){ assignCVIn(6,voltage); }
 void CV8In(float voltage){ assignCVIn(7,voltage); }
 
-void assignCVIn(int index, float voltage){
-  CVin[index] = voltage;
-  println("CV" + (index+1) + " In: " + voltage);
-}
-
+void assignCVIn(int index, float voltage){ CVin[index] = voltage; }
 void assignCVOut(int index, float voltage){
   CVout[index] = voltage;
-  println("CV" + (index+1) + " Out: " + voltage);
-
   OscMessage msg = new OscMessage("/ch/" + (index+1));
   msg.add(voltage);
   OSC.send(msg, remote);
