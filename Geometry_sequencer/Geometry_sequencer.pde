@@ -129,7 +129,7 @@ void setup() {
   for(int i=0;i<8;i++) OSC.plug(this,"CV"+(i+1)+"In","/ch/"+(i+1));
 
   seqCenterX = width * 0.15;
-  seqCenterY = height * 0.35;
+  seqCenterY = height * 0.4;
   setupKnobs();
 }
 
