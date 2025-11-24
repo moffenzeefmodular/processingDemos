@@ -260,10 +260,10 @@ void setup() {
   sequencers[2] = new Sequencer(width-marginX, height*0.45);
 
   // Clock speed knob between sequencer 2 & 3, top of polygon
-  float radius = min(width, height) * 0.25;
-  float knobX = (sequencers[1].centerX + sequencers[2].centerX) / 2;
-  float knobY = sequencers[1].centerY - radius;
-  clockKnob = new Knob(knobX, knobY, 20, "Clock Speed", 0.2);
+  // Move Clock speed knob to top right with margin
+  float knobMargin = 20;
+  float knobRadius = 20;
+  clockKnob = new Knob(width - knobMargin - knobRadius, knobMargin + knobRadius, knobRadius, "Clock Speed", 0.2);
 }
 
 // ---------------- Draw ----------------
