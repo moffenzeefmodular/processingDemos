@@ -4,13 +4,12 @@ int screenH = 400;
 int buttonSize = 55;
 int encoderSize = 150;
 int padSize = 150;
-int padIndicatorSize = 20; // diameter of the indicator
+int padIndicatorSize = 20;
+int cubeSize = 80;
 
 // Encoder state
 float leftEncAngle = -HALF_PI;
 float rightEncAngle = -HALF_PI;
-
-// Smoothed target angle
 float leftEncTarget = leftEncAngle;
 float rightEncTarget = rightEncAngle;
 
@@ -18,29 +17,30 @@ float rightEncTarget = rightEncAngle;
 int draggingEncoder = -1;
 float lastMouseAngle = 0;
 
-// Double-click timing
+// Double-click timing for encoders
 int[] lastClickTime = {0, 0};
 boolean[] encoderPressed = {false, false};
 int encoderPressDuration = 200; // ms
 
-// ---------------------------
 // Button state
-// ---------------------------
-boolean[] buttonPressed = new boolean[4];  // 4 buttons
+boolean[] buttonPressed = new boolean[4];
 
-// ---------------------------
-// XY Pad Indicator
-// ---------------------------
+// XY Pad
 PVector padIndicator;
 boolean draggingPad = false;
 
+// Cube rotation
+float cubeRotX = 0;
+float cubeRotY = 0;
+boolean draggingCube = false;
+float lastCubeMouseX, lastCubeMouseY;
+
 void setup() {
-  size(1500, 1000);
+  size(1500, 1000, P3D);
   rectMode(CENTER);
   ellipseMode(CENTER);
-  noStroke();
+  textSize(14);
 
-  // Initialize pad indicator at center
   padIndicator = new PVector(0, 0);
 }
 
@@ -52,6 +52,7 @@ void draw() {
   float panelW = screenW + 260;
   float panelH = screenH + 440;
 
+  // Panel background
   fill(32);
   rect(cx, cy, panelW, panelH, 25);
 
@@ -71,7 +72,6 @@ void draw() {
     fill(btnColor);
     ellipse(firstButtonX + i * spacing, buttonRowY, buttonSize, buttonSize);
 
-    // Centered inner shadow for depth
     noFill();
     stroke(0, 30);
     strokeWeight(4);
@@ -84,37 +84,32 @@ void draw() {
   float leftEncX  = cx - screenW/4;
   float rightEncX = cx + screenW/4;
 
-  // Draw encoders with subtle pressed effect
-  fill(encoderPressed[0] ? 38 : 45);
+  fill(encoderPressed[0] ? 40 : 45);
   ellipse(leftEncX, encY, encoderSize, encoderSize);
-  fill(encoderPressed[1] ? 38 : 45);
+  fill(encoderPressed[1] ? 40 : 45);
   ellipse(rightEncX, encY, encoderSize, encoderSize);
 
-  // Smooth rotation towards target (inertia)
+  // Smooth rotation
   leftEncAngle += (leftEncTarget - leftEncAngle) * 0.2;
   rightEncAngle += (rightEncTarget - rightEncAngle) * 0.2;
 
-  // Encoder indicator lines with subtle pressed effect
+  // Encoder indicators
+  stroke(255);
   strokeWeight(4);
   float knobRadius = encoderSize / 2.0;
   float indicatorLength = knobRadius * 0.2;
 
-  // Left encoder line
-  stroke(encoderPressed[0] ? color(200) : 255); // slightly darker if pressed
   float startX = leftEncX + cos(leftEncAngle) * (knobRadius - indicatorLength);
   float startY = encY + sin(leftEncAngle) * (knobRadius - indicatorLength);
   float endX   = leftEncX + cos(leftEncAngle) * knobRadius;
   float endY   = encY + sin(leftEncAngle) * knobRadius;
   line(startX, startY, endX, endY);
 
-  // Right encoder line
-  stroke(encoderPressed[1] ? color(200) : 255);
   startX = rightEncX + cos(rightEncAngle) * (knobRadius - indicatorLength);
   startY = encY + sin(rightEncAngle) * (knobRadius - indicatorLength);
   endX   = rightEncX + cos(rightEncAngle) * knobRadius;
   endY   = encY + sin(rightEncAngle) * knobRadius;
   line(startX, startY, endX, endY);
-
   noStroke();
 
   // XY PAD
@@ -126,7 +121,6 @@ void draw() {
   fill(65);
   rect(0, 0, padSize, padSize, 10);
 
-  // Draw indicator dot as blue stroke
   noFill();
   stroke(0, 0, 255);
   strokeWeight(3);
@@ -134,17 +128,79 @@ void draw() {
   noStroke();
   popMatrix();
 
-  // Reset encoder press effect after duration
+  // Reset encoder press effect
   for (int i = 0; i < 2; i++) {
     if (encoderPressed[i] && millis() - lastClickTime[i] > encoderPressDuration) {
       encoderPressed[i] = false;
     }
   }
+
+  // ---------------------------
+  // DRAW ACCELEROMETER CUBE ON TOP
+  // ---------------------------
+  pushMatrix();
+  hint(DISABLE_DEPTH_TEST);
+  ortho();
+  float margin = 50;
+  translate(width - margin - cubeSize/2, height - margin - cubeSize/2, 0);
+  rotateX(cubeRotX);
+  rotateY(cubeRotY);
+
+  // Axes
+  strokeWeight(3);
+  stroke(255,0,0); line(0,0,0, 50,0,0); // X
+  stroke(0,255,0); line(0,0,0, 0,50,0); // Y
+  stroke(0,0,255); line(0,0,0, 0,0,50); // Z
+
+  // Cube faces in solid, high-contrast grayscale
+  noStroke();
+  beginShape(QUADS);
+  fill(240); // front
+  vertex(-cubeSize/2, -cubeSize/2, cubeSize/2);
+  vertex( cubeSize/2, -cubeSize/2, cubeSize/2);
+  vertex( cubeSize/2,  cubeSize/2, cubeSize/2);
+  vertex(-cubeSize/2,  cubeSize/2, cubeSize/2);
+
+  fill(50); // back
+  vertex(-cubeSize/2, -cubeSize/2, -cubeSize/2);
+  vertex(-cubeSize/2,  cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2,  cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2, -cubeSize/2, -cubeSize/2);
+
+  fill(180); // right
+  vertex( cubeSize/2, -cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2,  cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2,  cubeSize/2,  cubeSize/2);
+  vertex( cubeSize/2, -cubeSize/2,  cubeSize/2);
+
+  fill(120); // left
+  vertex(-cubeSize/2, -cubeSize/2, -cubeSize/2);
+  vertex(-cubeSize/2, -cubeSize/2,  cubeSize/2);
+  vertex(-cubeSize/2,  cubeSize/2,  cubeSize/2);
+  vertex(-cubeSize/2,  cubeSize/2, -cubeSize/2);
+
+  fill(200); // top
+  vertex(-cubeSize/2, -cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2, -cubeSize/2, -cubeSize/2);
+  vertex( cubeSize/2, -cubeSize/2,  cubeSize/2);
+  vertex(-cubeSize/2, -cubeSize/2,  cubeSize/2);
+
+  fill(80); // bottom
+  vertex(-cubeSize/2, cubeSize/2, -cubeSize/2);
+  vertex(-cubeSize/2, cubeSize/2,  cubeSize/2);
+  vertex( cubeSize/2, cubeSize/2,  cubeSize/2);
+  vertex( cubeSize/2, cubeSize/2, -cubeSize/2);
+  endShape();
+  popMatrix();
+
+
+// Cube label ABOVE the cube
+fill(0);
+textAlign(CENTER);
+float labelSpacing = 40; // pixels above the cube
+text("Accelerometer", width - margin - cubeSize/2, height - margin - cubeSize/2 - cubeSize/2 - labelSpacing);
 }
 
-// ---------------------------
-// MOUSE INTERACTION
-// ---------------------------
 void mousePressed() {
   float cx = width / 2.0;
   float cy = height / 2.0;
@@ -154,7 +210,7 @@ void mousePressed() {
   float leftEncX  = cx - screenW/4;
   float rightEncX = cx + screenW/4;
 
-  // Check buttons
+  // BUTTONS
   float spacing = screenW / 5.0;
   float firstButtonX = cx - screenW/2 + spacing;
   for (int i = 0; i < 4; i++) {
@@ -163,21 +219,19 @@ void mousePressed() {
     }
   }
 
-  // Check encoders for double-click
+  // ENCODERS
   for (int i = 0; i < 2; i++) {
     float encX = (i == 0) ? leftEncX : rightEncX;
     if (dist(mouseX, mouseY, encX, encY) < encoderSize/2) {
       int now = millis();
-      if (now - lastClickTime[i] < 400) { // double click threshold
-        encoderPressed[i] = true;         // trigger subtle press
-      }
+      if (now - lastClickTime[i] < 400) encoderPressed[i] = true;
       lastClickTime[i] = now;
       draggingEncoder = i;
       lastMouseAngle = atan2(mouseY - encY, mouseX - encX);
     }
   }
 
-  // Check XY pad click
+  // XY PAD
   float padXc = cx;
   float padYc = encY + 10;
   float relX = (mouseX - padXc) * cos(radians(-45)) - (mouseY - padYc) * sin(radians(-45));
@@ -188,10 +242,19 @@ void mousePressed() {
     padIndicator.x = constrain(relX, -maxPos, maxPos);
     padIndicator.y = constrain(relY, -maxPos, maxPos);
   }
+
+  // CUBE
+  float margin = 50;
+  if (mouseX > width - margin - cubeSize && mouseX < width - margin &&
+      mouseY > height - margin - cubeSize && mouseY < height - margin) {
+    draggingCube = true;
+    lastCubeMouseX = mouseX;
+    lastCubeMouseY = mouseY;
+  }
 }
 
 void mouseDragged() {
-  // Encoders
+  // ENCODERS
   if (draggingEncoder != -1) {
     float cx = width / 2.0;
     float cy = height / 2.0;
@@ -211,7 +274,7 @@ void mouseDragged() {
     lastMouseAngle = currentMouseAngle;
   }
 
-  // XY pad indicator
+  // XY PAD
   if (draggingPad) {
     float cx = width / 2.0;
     float cy = height / 2.0;
@@ -221,15 +284,23 @@ void mouseDragged() {
 
     float relX = (mouseX - padXc) * cos(radians(-45)) - (mouseY - padYc) * sin(radians(-45));
     float relY = (mouseX - padXc) * sin(radians(-45)) + (mouseY - padYc) * cos(radians(-45));
-
     float maxPos = padSize/2 - padIndicatorSize/2;
     padIndicator.x = constrain(relX, -maxPos, maxPos);
     padIndicator.y = constrain(relY, -maxPos, maxPos);
+  }
+
+  // CUBE
+  if (draggingCube) {
+    cubeRotY += (mouseX - lastCubeMouseX) * 0.01;
+    cubeRotX += (mouseY - lastCubeMouseY) * 0.01;
+    lastCubeMouseX = mouseX;
+    lastCubeMouseY = mouseY;
   }
 }
 
 void mouseReleased() {
   draggingEncoder = -1;
   draggingPad = false;
+  draggingCube = false;
   for (int i = 0; i < 4; i++) buttonPressed[i] = false;
 }
