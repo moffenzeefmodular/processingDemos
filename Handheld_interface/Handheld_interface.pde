@@ -1,7 +1,7 @@
 int screenW = 960;
 int screenH = 400;
 
-int buttonSize = 55;
+int buttonSize = 75;
 int encoderSize = 150;
 int padSize = 150;
 int padIndicatorSize = 20;
@@ -49,7 +49,7 @@ void draw() {
 
   float cx = width / 2.0;
   float cy = height / 2.0;
-  float panelW = screenW + 260;
+  float panelW = screenW + 150;
   float panelH = screenH + 440;
 
   // Panel background
